@@ -88,7 +88,7 @@ vpn apply <config>
 - coreutils
 - curl (for notify / address)
 - jq (optional, for formatted output)
-- openssl (for ranstr)
+- openssl (for randstr)
 - wiresock-client (for vpn)
 
 # Notes
