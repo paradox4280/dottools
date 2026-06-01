@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -u
+
+: "${CHAT_ID:?CHAT_ID not set}"
+: "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN not set}"
+
+parse_mode="HTML"
+
+if [[ -t 0 ]]; then
+  text="$*"
+else
+  text="$(cat)"
+fi
+
+if [[ -z "$text" ]]; then
+  echo "No message provided" >&2
+  exit 1
+fi
+
+response="$(
+  curl -s -X POST \
+    -d "chat_id=${CHAT_ID}" \
+    -d "text=${text}" \
+    -d "parse_mode=${parse_mode}" \
+    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
+)"
+
+if echo "$response" | grep -q '"ok":false'; then
+  echo "Telegram error: $response" >&2
+  exit 1
+fi

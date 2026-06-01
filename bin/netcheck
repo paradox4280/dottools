@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+flag=""
+
+case "${OSTYPE:-}" in
+  msys*|cygwin*|win32*)
+    flag="-n"
+    ;;
+  *)
+    flag="-c"
+    ;;
+esac
+
+net="Disconnected ❌"
+dns="Disconnected ❌"
+
+if ping "$flag" 1 8.8.8.8 &>/dev/null; then
+  net="Connected ✔"
+fi
+
+if ping "$flag" 1 archlinux.org &>/dev/null; then
+  dns="Connected ✔"
+fi
+
+echo "Network Status: $net"
+echo "DNS Status: $dns"

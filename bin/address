@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CODE="${1:-US}"
+CODE="${CODE,,}"
+
+URL="https://smartfake.vercel.app/api/address?code=${CODE}"
+
+response=$(curl -fsSL "$URL") || { echo "Request failed"; exit 1; }
+
+if command -v jq >/dev/null 2>&1; then
+  echo "$response" | jq '{person_name, phone_number, street_address, city, state, country, postal_code}'
+else
+  echo "$response"
+fi

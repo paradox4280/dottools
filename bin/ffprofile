@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -u
+
+base="${FIREFOX_BASE:-$HOME/Programs/firefox}"
+exe="$base/firefox.exe"
+profiles_dir="$base/Profiles"
+
+usage() {
+  cat <<EOF
+Usage: ffprofile [options]
+
+Options:
+  -l            List profiles
+  -s            Interactive select profile
+  -p NAME       Launch profile (default if omitted)
+  -h            Show help
+EOF
+}
+
+list_profiles() {
+  echo "Available profiles:"
+  ls "$profiles_dir"
+}
+
+select_profile() {
+  local profiles
+  mapfile -t profiles < <(ls "$profiles_dir")
+
+  [[ ${#profiles[@]} -eq 0 ]] && {
+    echo "No profiles found"
+    exit 1
+  }
+
+  echo "Select profile:"
+  select p in "${profiles[@]}"; do
+    [[ -n "$p" ]] || continue
+    "$exe" -p "$profiles_dir/$p/"
+    break
+  done
+}
+
+launch_profile() {
+  local profile="${1:-Default}"
+  local path="$profiles_dir/$profile"
+
+  [[ -d "$path" ]] || {
+    echo "Profile not found: $profile"
+    exit 1
+  }
+
+  "$exe" -p "$path/"
+}
+
+while getopts ":lsp:h" opt; do
+  case "$opt" in
+    l) list_profiles; exit 0 ;;
+    s) select_profile; exit 0 ;;
+    p) launch_profile "$OPTARG"; exit 0 ;;
+    h) usage; exit 0 ;;
+    *) usage; exit 1 ;;
+  esac
+done
+
+launch_profile "Default"

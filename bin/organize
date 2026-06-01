@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+shopt -s nullglob
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/organize"
+RULE_DIR="$CONFIG_DIR/rules"
+
+[[ -f "$CONFIG_DIR/config.sh" ]] && source "$CONFIG_DIR/config.sh"
+
+mapfile -t RULE_FILES < <(find "$RULE_DIR" -type f -name "*.sh" 2>/dev/null | sort)
+
+[[ ${#RULE_FILES[@]} -gt 0 ]] || { echo "No rule files found"; exit 1; }
+
+MODE="${1:-${DEFAULT_MODE:-run}}"
+
+GREEN="\033[32m"
+YELLOW="\033[33m"
+RED="\033[31m"
+BLUE="\033[34m"
+DIR="\033[1;34m"
+RESET="\033[0m"
+
+i=0
+total=0
+
+all_files=()
+declare -A seen
+
+for rule in "${RULE_FILES[@]}"; do
+  unset match_patterns target_dir
+  source "$rule"
+
+  for pattern in "${match_patterns[@]:-}"; do
+    files=( $pattern )
+    [[ ${#files[@]} -eq 0 ]] && continue
+
+    for f in "${files[@]}"; do
+      [[ -e "$f" ]] || continue
+      [[ -n "${seen["$f"]:-}" ]] && continue
+      seen["$f"]=1
+      all_files+=("$f")
+    done
+  done
+done
+
+total=${#all_files[@]}
+
+move_file() {
+  local file="$1"
+  local target="$2"
+
+  i=$((i + 1))
+
+  if [[ -z "$target" ]]; then
+    printf "${RED}[%d/%d] No target:${RESET} %s\n" "$i" "$total" "$file"
+    return 0
+  fi
+
+  if [[ "$MODE" == "--dry" ]]; then
+    printf "${YELLOW}[%d/%d] [DRY]${RESET} %q -> ${DIR}%q/${RESET}\n" \
+      "$i" "$total" "$file" "$target"
+  else
+    mkdir -p -- "$target"
+    if mv -n -- "$file" "$target/"; then
+      printf "${GREEN}[%d/%d] Moved:${RESET} %s -> ${DIR}%s/${RESET}\n" \
+        "$i" "$total" "$file" "$target"
+    else
+      printf "${YELLOW}[%d/%d] Skipped:${RESET} %s\n" \
+        "$i" "$total" "$file"
+    fi
+  fi
+}
+
+case "$MODE" in
+  run|--dry)
+    for rule in "${RULE_FILES[@]}"; do
+      unset match_patterns target_dir
+      source "$rule"
+
+      for pattern in "${match_patterns[@]:-}"; do
+        files=( $pattern )
+        [[ ${#files[@]} -eq 0 ]] && continue
+
+        for f in "${files[@]}"; do
+          [[ -e "$f" ]] || continue
+          move_file "$f" "${target_dir:-}"
+        done
+      done
+    done
+    ;;
+
+  *)
+    echo "Usage:"
+    echo "  organize run"
+    echo "  organize --dry"
+    exit 1
+    ;;
+esac

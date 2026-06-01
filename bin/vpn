@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/vpn"
+
+source "$CONFIG_DIR/config.sh"
+source "$CONFIG_DIR/rules.sh"
+
+case "${1:-}" in
+
+  connect)
+    [[ -f ${2:-} ]] || { echo "File not found"; exit 1; }
+    wiresock-client run -config "$2" -log-level none
+    ;;
+
+  pick)
+    mapfile -t configs < <(find "$WG_DIR" -type f -name "*.conf" | sort)
+
+    [[ ${#configs[@]} -eq 0 ]] && { echo "No configs found"; exit 1; }
+
+    echo "Pick a config:"
+    select config in "${configs[@]}"; do
+      [[ -n $config ]] || { echo "Invalid choice"; continue; }
+
+      echo "Using: $config"
+      wiresock-client run -config "$config" -log-level none
+      break
+    done
+    ;;
+
+  random)
+    config_file=$(find "$WG_DIR" -type f | shuf -n 1)
+    echo "Using: $config_file"
+    wiresock-client run -config "$config_file" -log-level none
+    ;;
+
+  apply)
+    [[ -f ${2:-} ]] || { echo "File not found"; exit 1; }
+
+    {
+      cat "$2"
+
+      printf "\nDisallowedApps = %s\n" "$DISALLOWED_APPS"
+      printf "DisallowedIPs = %s\n" "$DISALLOWED_IPS\n"
+    } > "$DEFAULT_CONFIG"
+
+    wiresock-client run -config "$DEFAULT_CONFIG" -log-level none
+    ;;
+
+  *)
+    echo "Usage:"
+    echo "  vpn connect <config>"
+    echo "  vpn pick"
+    echo "  vpn random"
+    echo "  vpn apply <config>"
+    exit 1
+    ;;
+esac

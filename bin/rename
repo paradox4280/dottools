@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode="${1:-}"
+dry=false
+
+if [ "$#" -gt 0 ]; then
+  shift
+fi
+
+for arg in "$@"; do
+  case "$arg" in
+    --dry) dry=true ;;
+    *) ;;
+  esac
+done
+
+case "$mode" in
+  images)
+    shopt -s nullglob
+
+    for file in *.png *.jpg *.jpeg *.gif; do
+      [ -f "$file" ] || continue
+
+      ext="${file##*.}"
+      rand="$(openssl rand -hex 4)"
+      dt="$(date +%Y%m%d)"
+
+      new="${dt}-${rand}.${ext}"
+
+      if $dry; then
+        echo "[DRY] $file -> $new"
+      else
+        if mv -- "$file" "$new"; then
+          echo "$file -> $new"
+        else
+          echo "Failed: $file" >&2
+        fi
+      fi
+    done
+
+    shopt -u nullglob
+    ;;
+
+  videos)
+    shopt -s nullglob
+
+    for file in *.mp4 *.mkv *.mov *.avi *.webm; do
+      [ -f "$file" ] || continue
+
+      ext="${file##*.}"
+      rand="$(openssl rand -hex 3)"
+      dt="$(date +%Y%m%d-%H%M%S)"
+
+      new="vid-${dt}-${rand}.${ext}"
+
+      if $dry; then
+        echo "[DRY] $file -> $new"
+      else
+        if mv -- "$file" "$new"; then
+          echo "$file -> $new"
+        else
+          echo "Failed: $file" >&2
+        fi
+      fi
+    done
+
+    shopt -u nullglob
+    ;;
+
+  *)
+    echo "Usage:"
+    echo "  rename images [--dry]"
+    echo "  rename videos [--dry]"
+    ;;
+esac

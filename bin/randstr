@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -u
+
+usage() {
+  cat <<EOF
+Usage: randstr [options] [length]
+
+Options:
+  -u   include uppercase
+  -l   include lowercase
+  -n   include numbers
+  -s   include symbols
+  -x   hex mode
+  -b   base64 mode
+  -h   help
+
+Default:
+  lowercase + numbers (32 chars)
+EOF
+}
+
+len=32
+mode="custom"
+
+upper=0
+lower=0
+numbers=0
+symbols=0
+
+while getopts ":ulnsxbh" opt; do
+  case "$opt" in
+    u) upper=1 ;;
+    l) lower=1 ;;
+    n) numbers=1 ;;
+    s) symbols=1 ;;
+    x) mode="hex" ;;
+    b) mode="base64" ;;
+    h) usage; exit 0 ;;
+    \?) echo "Invalid option: -$OPTARG" >&2; usage; exit 1 ;;
+  esac
+done
+
+shift $((OPTIND - 1))
+
+[[ $# -gt 0 ]] && len="$1"
+
+pick() {
+  head -c 1 /dev/urandom | tr -dc "$1" | head -c 1
+}
+
+case "$mode" in
+  hex)
+    if command -v openssl >/dev/null 2>&1; then
+      openssl rand -hex $((len / 2))
+    else
+      head -c "$len" /dev/urandom | od -An -tx1 | tr -d ' \n'
+    fi
+    echo
+    exit 0
+    ;;
+
+  base64)
+    if command -v openssl >/dev/null 2>&1; then
+      openssl rand -base64 $((len * 3 / 4)) | tr -d '\n'
+    else
+      head -c "$len" /dev/urandom | base64 | tr -d '\n'
+    fi
+    echo
+    exit 0
+    ;;
+esac
+
+if (( upper + lower + numbers + symbols == 0 )); then
+  lower=1
+  numbers=1
+fi
+
+charset=""
+[[ $upper -eq 1 ]]   && charset+="A-Z"
+[[ $lower -eq 1 ]]   && charset+="a-z"
+[[ $numbers -eq 1 ]] && charset+="0-9"
+[[ $symbols -eq 1 ]] && charset+="!@#\$%^&*()-_=+[]{}|;:,.<>?/"
+
+result=""
+
+(( upper ))   && result+=$(pick "A-Z")
+(( lower ))   && result+=$(pick "a-z")
+(( numbers )) && result+=$(pick "0-9")
+(( symbols )) && result+=$(pick "!@#\$%^&*()-_=+[]{}|;:,.<>?/")
+
+remaining=$((len - ${#result}))
+(( remaining < 0 )) && remaining=0
+
+result+=$(tr -dc "$charset" </dev/urandom | head -c "$remaining")
+
+echo "$result" | fold -w1 | shuf | tr -d '\n'
+echo
