@@ -33,10 +33,11 @@ netcheck
 
 ### notify
 
-Send notifications via Telegram.
+Send notifications via Telegram, supports both argument and pipe input.
 
 ```bash
 notify "message"
+echo "message" | notify
 ```
 
 ### organize
